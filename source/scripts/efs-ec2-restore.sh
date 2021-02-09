@@ -17,7 +17,7 @@ echo "This is the master script to perform efs restore"
 sleep 2
 
 _source_efs=$1 ## {type:string, description:source efs id}
-_backup_efs=$2 ## {type:string, description:backup efs id}
+_backup_efs=$2 ## {type:string, description:backup efs ip}
 _interval=$3 ## {type:string, description:interval for backup daily/weekly/monthly}
 _backup_num=$4 ## {type:number, description:backup number to restore}
 _folder_label=$5 ## {type:string, description:backup identifier}
@@ -60,14 +60,19 @@ done
 _src_mount_ip=$(dig ${_source_efs}.efs.${_region}.amazonaws.com +short)
 echo "-- $(date -u +%FT%T) -- src mount ip: ${_src_mount_ip}"
 
-echo "-- $(date -u +%FT%T) -- resolving backup efs address ${_backup_efs}.efs.${_region}.amazonaws.com"
-until dig ${_backup_efs}.efs.${_region}.amazonaws.com +short
-do
-  sleep 1
-done
-_backup_mount_ip=$(dig ${_backup_efs}.efs.${_region}.amazonaws.com +short)
-echo "-- $(date -u +%FT%T) -- backup mount ip: ${_backup_mount_ip}"
-
+if [[ $_backup_efs =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+  echo "-- $(date -u +%FT%T) -- Entered backup efs IP address no need to resolve"
+  _backup_mount_ip=$_backup_efs
+  echo "-- $(date -u +%FT%T) -- backup mount ip: ${_backup_mount_ip}"
+else
+  echo "-- $(date -u +%FT%T) -- resolving backup efs address ${_backup_efs}.efs.${_region}.amazonaws.com"
+  until dig ${_backup_efs}.efs.${_region}.amazonaws.com +short
+  do
+    sleep 1
+  done
+  _backup_mount_ip=$(dig ${_backup_efs}.efs.${_region}.amazonaws.com +short)
+  echo "-- $(date -u +%FT%T) -- backup mount ip: ${_backup_mount_ip}"
+fi
 if [ -z "${_src_mount_ip}" ] || [ -z "${_backup_mount_ip}" ]; then
   echo "-- $(date -u +%FT%T) -- ERROR:efs_mount_ip_not_found"
   echo "-- $(date -u +%FT%T) -- Either or both mount IPs not found, skipping EFS restore script. Please verify if the EC2 instance was launched in the same AZ as the EFS systems."
